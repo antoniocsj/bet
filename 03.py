@@ -1,3 +1,5 @@
+# supõe-se que todas as apostas são múltiplas
+
 import os
 import json
 import sqlite3
@@ -18,9 +20,13 @@ def gera_relatorio(arquivo):
     apostas = data['apostas']
 
     # Converte as apostas múltiplas para um formato imutável para poder usar um set
-    multiple_bet_bank = []
+    multiple_bet_list = []
 
     for aposta in apostas:
+        StakeDesc = aposta['StakeDesc']
+        HeaderText = aposta['HeaderText']
+        BetInformationText = aposta['BetInformationText']
+
         ParticipantContainer = aposta['ParticipantContainer']
         multiple_bet = []
 
@@ -35,20 +41,20 @@ def gera_relatorio(arquivo):
 
         multiple_bet_str = ', '.join(sorted(multiple_bet))
         print(f'multiple_bet = {multiple_bet_str}')
-        multiple_bet_bank.append(multiple_bet_str)
+        multiple_bet_list.append(multiple_bet_str)
 
-    multiple_bet_bank = sorted(multiple_bet_bank)
-    print(multiple_bet_bank)
+    multiple_bet_list = sorted(multiple_bet_list)
+    print(multiple_bet_list)
 
-    multiple_bet_bank_set = set(multiple_bet_bank)
-    print(multiple_bet_bank_set)
+    multiple_bet_set = set(multiple_bet_list)
+    print(multiple_bet_set)
     pass
 
     # Usa um set para remover duplicatas e compara o tamanho do set com a lista original
-    # if len(set(apostas_convertidas1)) != len(apostas):
-    #     print("Há apostas múltiplas idênticas.")
-    # else:
-    #     print("Não há apostas múltiplas idênticas.")
+    if len(multiple_bet_set) != len(apostas):
+        print("Há apostas múltiplas idênticas.")
+    else:
+        print("Não há apostas múltiplas idênticas.")
 
 
 def teste_01():
@@ -60,11 +66,15 @@ def create_database(file_json_in: str, file_sqlite):
     data = read_json(file_json_in)
     apostas = data['apostas']
 
-    sqliteConnection = None
+    # se já existe um arquivo de banco de dados, delete-o.
+    if os.path.exists(file_sqlite):
+        os.remove(file_sqlite)
+
+    connection = None
     try:
         # Connect to DB and create a cursor
-        sqliteConnection = sqlite3.connect(file_sqlite)
-        cursor = sqliteConnection.cursor()
+        connection = sqlite3.connect(file_sqlite)
+        cursor = connection.cursor()
         print('DB Init')
 
         # Write a query and execute it with cursor
@@ -73,8 +83,41 @@ def create_database(file_json_in: str, file_sqlite):
 
         # Fetch and output result
         result = cursor.fetchall()
-        print('SQLite Version is {}'.format(result))
+        print(f'SQLite Version is {result}')
 
+        with open('create_tables.sql') as file:
+            cursor.executescript(file.read())
+
+        simple_bet_id_counter = 1
+
+        # percorre todas as apostas e adiciona-as no banco.
+        for i, multiple_bet in enumerate(apostas):
+            StakeDesc = multiple_bet['StakeDesc']
+            HeaderText = multiple_bet['HeaderText']
+            BetInformationText = multiple_bet['BetInformationText']
+            multiple_id = i + 1
+            MultipleBetData = (multiple_id, StakeDesc, HeaderText, BetInformationText)
+
+            # inserir uma nova aposta múltipla na MultipleBet
+            query = "INSERT INTO MultipleBet VALUES(?, ?, ?, ?)"
+            print(MultipleBetData)
+            cursor.execute(query, MultipleBetData)
+
+            ParticipantContainer = multiple_bet['ParticipantContainer']
+
+            for simple_bet in ParticipantContainer:
+                ParticipantSpan = simple_bet['ParticipantSpan']
+                MarketDescription = simple_bet['MarketDescription']
+                FixtureName = simple_bet['FixtureName']
+                SimpleBetData = (simple_bet_id_counter, ParticipantSpan, MarketDescription, FixtureName, multiple_id)
+                simple_bet_id_counter += 1
+
+                # inserir uma nova aposta múltipla na MultipleBet
+                query = "INSERT INTO SimpleBet VALUES(?, ?, ?, ?, ?)"
+                print(f'    {SimpleBetData}')
+                cursor.execute(query, SimpleBetData)
+
+        connection.commit()
         # Close the cursor
         cursor.close()
 
@@ -85,8 +128,8 @@ def create_database(file_json_in: str, file_sqlite):
     # Close DB Connection irrespective of success
     # or failure
     finally:
-        if sqliteConnection:
-            sqliteConnection.close()
+        if connection:
+            connection.close()
             print('SQLite Connection closed')
 
 
