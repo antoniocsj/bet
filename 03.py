@@ -15,6 +15,11 @@ def read_json(filename: str) -> dict:
         exit(-1)
 
 
+def write_json(filename: str, _dict: dict):
+    with open(filename, 'w') as file:
+        json.dump(_dict, file, indent=4, ensure_ascii=False)
+
+
 def gera_relatorio(arquivo):
     data = read_json(arquivo)
     apostas = data['apostas']
@@ -62,7 +67,7 @@ def teste_01():
     pass
 
 
-def create_database(file_json_in: str, file_sqlite):
+def create_database(file_json_in: str, file_sqlite: str):
     data = read_json(file_json_in)
     apostas = data['apostas']
 
@@ -137,5 +142,75 @@ def teste_02():
     create_database('apostas.json', 'database.db')
 
 
+def query_db_01(file_sqlite: str):
+    """
+    Faz uma consulta específica no BD.
+    Solicita quais são as apostas múltiples que contém a seguinte linha (ou aposta simples)
+    ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24')
+    O resultado é gravado no arquivo results.json
+    :param file_sqlite:
+    :return:
+    """
+    connection = None
+    try:
+        # Connect to DB and create a cursor
+        connection = sqlite3.connect(file_sqlite)
+        cursor = connection.cursor()
+        print('DB Init')
+
+        # consulta a versão do BD.
+        query = 'select sqlite_version();'
+        cursor.execute(query)
+
+        # Fetch and output result
+        result = cursor.fetchall()
+        print(f'SQLite Version is {result}')
+
+        # executa a consulta ao banco de dados
+        query = '''
+        SELECT SimpleBet.MultipleBetID FROM SimpleBet WHERE 
+            ParticipantSpan = ? AND 
+            MarketDescription = ? AND
+            FixtureName = ?
+        '''
+        params = ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24')
+        cursor.execute(query, params)
+
+        result = cursor.fetchall()
+
+        results = {}
+        for r in result:
+            MultipleBetID = r[0]
+            print(MultipleBetID)
+            query2 = 'SELECT * from SimpleBet WHERE MultipleBetID = ?'
+            cursor.execute(query2, r)
+            result2 = cursor.fetchall()
+
+            results[str(MultipleBetID)] = []
+            result2_ = []
+            for row in result2:
+                row_str = f'{row[1]}, {row[2]}, {row[3]}'
+                result2_.append(row_str)
+
+            results[str(MultipleBetID)].append(sorted(result2_))
+
+        write_json('results.json', results)
+
+        # Close the cursor
+        cursor.close()
+
+    # Handle errors
+    except sqlite3.Error as error:
+        print('Error occurred - ', error)
+
+    # Close DB Connection irrespective of success
+    # or failure
+    finally:
+        if connection:
+            connection.close()
+            print('SQLite Connection closed')
+
+
 if __name__ == '__main__':
-    teste_02()
+    # teste_02()
+    query_db_01('database.db')
