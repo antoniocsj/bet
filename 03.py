@@ -71,6 +71,12 @@ def create_database(file_json_in: str, file_sqlite: str):
     data = read_json(file_json_in)
     apostas = data['apostas']
 
+    # estes conjustos servirão para saber quantos tipos diferentes ParticipantSpan, MarketDescription e
+    # FixtureName estão presentes no BD.
+    ParticipantSpanSet = set()
+    MarketDescriptionSet = set()
+    FixtureNameSet = set()
+
     # se já existe um arquivo de banco de dados, delete-o.
     if os.path.exists(file_sqlite):
         os.remove(file_sqlite)
@@ -122,8 +128,12 @@ def create_database(file_json_in: str, file_sqlite: str):
                 print(f'    {SimpleBetData}')
                 cursor.execute(query, SimpleBetData)
 
+                ParticipantSpanSet.add(ParticipantSpan)
+                MarketDescriptionSet.add(MarketDescription)
+                FixtureNameSet.add(FixtureName)
+
+        # Save changes and close the cursor
         connection.commit()
-        # Close the cursor
         cursor.close()
 
     # Handle errors
@@ -136,6 +146,15 @@ def create_database(file_json_in: str, file_sqlite: str):
         if connection:
             connection.close()
             print('SQLite Connection closed')
+
+    # salva os conjuntos em forma de listas ordenadas
+    _dict = {
+        'ParticipantSpanList': sorted(list(ParticipantSpanSet)),
+        'MarketDescriptionList': sorted(list(MarketDescriptionSet)),
+        'FixtureNameList': sorted(list(FixtureNameSet))
+    }
+
+    write_json('listas.json', _dict)
 
 
 def teste_02():
