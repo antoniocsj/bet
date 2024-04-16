@@ -1,23 +1,8 @@
 # supõe-se que todas as apostas são múltiplas
 
 import os
-import json
 import sqlite3
-
-
-def read_json(filename: str) -> dict:
-    if os.path.exists(filename):
-        with open(filename, 'r') as file:
-            _dict = json.load(file)
-        return _dict
-    else:
-        print(f'ERRO. o arquivo {filename} não foi encontrado.')
-        exit(-1)
-
-
-def write_json(filename: str, _dict: dict):
-    with open(filename, 'w') as file:
-        json.dump(_dict, file, indent=4, ensure_ascii=False)
+from utils import read_json, write_json
 
 
 def gera_relatorio(arquivo):
@@ -62,11 +47,6 @@ def gera_relatorio(arquivo):
         print("Não há apostas múltiplas idênticas.")
 
 
-def teste_01():
-    gera_relatorio('apostas.json')
-    pass
-
-
 def create_database(file_json_in: str, file_sqlite: str):
     data = read_json(file_json_in)
     apostas = data['apostas']
@@ -86,7 +66,7 @@ def create_database(file_json_in: str, file_sqlite: str):
         # Connect to DB and create a cursor
         connection = sqlite3.connect(file_sqlite)
         cursor = connection.cursor()
-        print('DB Init')
+        # print('DB Init')
 
         # Write a query and execute it with cursor
         query = 'select sqlite_version();'
@@ -94,7 +74,7 @@ def create_database(file_json_in: str, file_sqlite: str):
 
         # Fetch and output result
         result = cursor.fetchall()
-        print(f'SQLite Version is {result}')
+        # print(f'SQLite Version is {result}')
 
         with open('create_tables.sql') as file:
             cursor.executescript(file.read())
@@ -111,7 +91,7 @@ def create_database(file_json_in: str, file_sqlite: str):
 
             # inserir uma nova aposta múltipla na MultipleBet
             query = "INSERT INTO MultipleBet VALUES(?, ?, ?, ?)"
-            print(MultipleBetData)
+            # print(MultipleBetData)
             cursor.execute(query, MultipleBetData)
 
             ParticipantContainer = multiple_bet['ParticipantContainer']
@@ -125,7 +105,7 @@ def create_database(file_json_in: str, file_sqlite: str):
 
                 # inserir uma nova aposta múltipla na MultipleBet
                 query = "INSERT INTO SimpleBet VALUES(?, ?, ?, ?, ?)"
-                print(f'    {SimpleBetData}')
+                # print(f'    {SimpleBetData}')
                 cursor.execute(query, SimpleBetData)
 
                 ParticipantSpanSet.add(ParticipantSpan)
@@ -145,7 +125,7 @@ def create_database(file_json_in: str, file_sqlite: str):
     finally:
         if connection:
             connection.close()
-            print('SQLite Connection closed')
+            # print('SQLite Connection closed')
 
     # salva os conjuntos em forma de listas ordenadas
     _dict = {
@@ -155,10 +135,6 @@ def create_database(file_json_in: str, file_sqlite: str):
     }
 
     write_json('listas.json', _dict)
-
-
-def teste_02():
-    create_database('apostas.json', 'database.db')
 
 
 def query_db_01(file_sqlite: str):
@@ -175,7 +151,7 @@ def query_db_01(file_sqlite: str):
         # Connect to DB and create a cursor
         connection = sqlite3.connect(file_sqlite)
         cursor = connection.cursor()
-        print('DB Init')
+        # print('DB Init')
 
         # consulta a versão do BD.
         query = 'select sqlite_version();'
@@ -183,7 +159,7 @@ def query_db_01(file_sqlite: str):
 
         # Fetch and output result
         result = cursor.fetchall()
-        print(f'SQLite Version is {result}')
+        # print(f'SQLite Version is {result}')
 
         # executa a consulta ao banco de dados
         query = '''
@@ -200,7 +176,7 @@ def query_db_01(file_sqlite: str):
         results = {}
         for r in result:
             MultipleBetID = r[0]
-            print(MultipleBetID)
+            # print(MultipleBetID)
             query2 = 'SELECT * from SimpleBet WHERE MultipleBetID = ?'
             cursor.execute(query2, r)
             result2 = cursor.fetchall()
@@ -227,9 +203,9 @@ def query_db_01(file_sqlite: str):
     finally:
         if connection:
             connection.close()
-            print('SQLite Connection closed')
+            # print('SQLite Connection closed')
 
 
 if __name__ == '__main__':
-    # teste_02()
-    query_db_01('database.db')
+    create_database('apostas.json', 'database.db')
+    # query_db_01('database.db')
