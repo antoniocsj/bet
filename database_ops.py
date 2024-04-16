@@ -137,12 +137,20 @@ def create_database(file_json_in: str, file_sqlite: str):
     write_json('listas.json', _dict)
 
 
-def query_db_01(file_sqlite: str):
+def tuple_parameters_ok(_tuple: tuple):
+    for elem in _tuple:
+        if not isinstance(elem, str) or elem == '':
+            return False
+    return True
+
+
+def query_db_01(file_sqlite: str, parameters: tuple[str, str, str]) -> dict | None:
     """
     Faz uma consulta específica no BD.
-    Solicita quais são as apostas múltiples que contém a seguinte linha (ou aposta simples)
-    ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24')
-    O resultado é gravado no arquivo results.json
+    Solicita quais são as apostas múltiplas que contém a seguinte linha (ou aposta simples)
+    ('ParticipantSpan', 'MarketDescription', 'FixtureName')
+    O resultado é retornado e também é gravado no arquivo results.json
+    :param parameters: uma tupla no formato ('ParticipantSpan', 'MarketDescription', 'FixtureName')
     :param file_sqlite:
     :return:
     """
@@ -168,8 +176,13 @@ def query_db_01(file_sqlite: str):
             MarketDescription = ? AND
             FixtureName = ?
         '''
-        params = ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24')
-        cursor.execute(query, params)
+
+        # params = ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24')
+        if not tuple_parameters_ok(parameters):
+            print('ERRO. parâmetros inválidos.')
+            return None
+
+        cursor.execute(query, parameters)
 
         result = cursor.fetchall()
 
@@ -194,6 +207,8 @@ def query_db_01(file_sqlite: str):
         # Close the cursor
         cursor.close()
 
+        return results
+
     # Handle errors
     except sqlite3.Error as error:
         print('Error occurred - ', error)
@@ -208,4 +223,4 @@ def query_db_01(file_sqlite: str):
 
 if __name__ == '__main__':
     create_database('apostas.json', 'database.db')
-    # query_db_01('database.db')
+    query_db_01('database.db', ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24'))
