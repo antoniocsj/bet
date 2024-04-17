@@ -1,7 +1,7 @@
 import os.path
 
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QListWidget, QAbstractItemView, QPushButton,
-                               QMessageBox, QTableWidget, QTableWidgetItem)
+                               QMessageBox, QTableWidget, QTableWidgetItem, QLabel)
 from PySide6.QtCore import Qt
 from parse_html_ops import extract_bets_from_html
 from database_ops import create_database, query_db_01
@@ -65,7 +65,21 @@ class MainWindow(QWidget):
 
         h_layout3 = QHBoxLayout()
         h_layout3.addWidget(self.multipleIDsList_widget)
-        h_layout3.addWidget(self.table_widget)
+
+        self.label_mbet_stake = QLabel()
+        self.label_mbet_name = QLabel()
+        self.label_mbet_ret = QLabel()
+
+        h_layout4 = QHBoxLayout()
+        h_layout4.addWidget(self.label_mbet_stake)
+        h_layout4.addWidget(self.label_mbet_name)
+        h_layout4.addWidget(self.label_mbet_ret)
+
+        v_layout0 = QVBoxLayout()
+        v_layout0.addLayout(h_layout4)
+        v_layout0.addWidget(self.table_widget)
+
+        h_layout3.addLayout(v_layout0)
 
         v_layout = QVBoxLayout()
         v_layout.addLayout(h_layout1)
@@ -102,9 +116,19 @@ class MainWindow(QWidget):
             self.multiple_id_selected = item.text()
 
             if self.query_result:
-                self.table_widget.clear()
+                self.reset_table_widget()
 
-                rows = self.query_result[self.multiple_id_selected]
+                result = self.query_result[self.multiple_id_selected]
+
+                # atualiza as informações gerais sobre a múltipla
+                info = result['info']
+                mbet_stake, mbet_name, mbet_ret = info[0], info[1], info[2]
+                self.label_mbet_stake.setText(mbet_stake)
+                self.label_mbet_name.setText(mbet_name)
+                self.label_mbet_ret.setText(mbet_ret)
+
+                # atualiza a tabela que contém os detalhes da aposta múltipla
+                rows = result['rows']
                 n_rows = len(rows)
                 n_columns = len(rows[0])
 
@@ -179,8 +203,8 @@ class MainWindow(QWidget):
         if self.multipleIDsList_widget.count() > 0:
             self.multipleIDsList_widget.clear()
 
-        if self.table_widget.rowCount() > 0:
-            self.reset_table_widget()
+        # if self.table_widget.rowCount() > 0:
+        self.reset_table_widget()
 
     def query_db(self):
         if not os.path.exists('database.db'):
@@ -209,6 +233,9 @@ class MainWindow(QWidget):
         self.table_widget.clear()
         self.table_widget.setRowCount(0)
         self.table_widget.setColumnCount(0)
+        self.label_mbet_stake.clear()
+        self.label_mbet_name.clear()
+        self.label_mbet_ret.clear()
 
     def check_files(self):
         if os.path.exists('listas.json'):

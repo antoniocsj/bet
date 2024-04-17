@@ -189,19 +189,24 @@ def query_db_01(file_sqlite: str, parameters: tuple[str, str, str]) -> dict | No
         results = {}
         for r in result:
             MultipleBetID = r[0]
-            # print(MultipleBetID)
-            query2 = 'SELECT * from SimpleBet WHERE MultipleBetID = ?'
-            cursor.execute(query2, r)
-            result2 = cursor.fetchall()
+            results[str(MultipleBetID)] = {'info': tuple(), 'rows': []}
 
-            results[str(MultipleBetID)] = []
-            result2_ = []
-            for row in result2:
+            query2 = 'SELECT * FROM MultipleBet WHERE ID = ?'
+            cursor.execute(query2, r)
+            result2 = cursor.fetchone()
+            results[str(MultipleBetID)]['info'] = (result2[1], result2[2], result2[3])
+
+            query3 = 'SELECT * from SimpleBet WHERE MultipleBetID = ?'
+            cursor.execute(query3, r)
+            result3 = cursor.fetchall()
+
+            result3_ = []
+            for row in result3:
                 # row_str = f'{row[1]}, {row[2]}, {row[3]}'
                 _row = (row[1], row[2], row[3])
-                result2_.append(_row)
+                result3_.append(_row)
 
-            results[str(MultipleBetID)] = sorted(result2_)
+            results[str(MultipleBetID)]['rows'] = sorted(result3_)
 
         write_json('results.json', results)
 
@@ -223,5 +228,5 @@ def query_db_01(file_sqlite: str, parameters: tuple[str, str, str]) -> dict | No
 
 
 if __name__ == '__main__':
-    create_database('apostas.json', 'database.db')
+    # create_database('apostas.json', 'database.db')
     query_db_01('database.db', ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24'))
