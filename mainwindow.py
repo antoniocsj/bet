@@ -1,3 +1,5 @@
+import os.path
+
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QListWidget, QAbstractItemView, QPushButton,
                                QMessageBox, QTableWidget, QTableWidgetItem)
 from PySide6.QtCore import Qt
@@ -11,7 +13,6 @@ class MainWindow(QWidget):
         super().__init__()
 
         self.listas = None
-        # ('ParticipantSpan', 'MarketDescription', 'FixtureName')
         self.ParticipantSpan = ''
         self.MarketDescription = ''
         self.FixtureName = ''
@@ -129,7 +130,18 @@ class MainWindow(QWidget):
             self.multiple_id_selected = ''
 
     def extract(self):
+        if not os.path.exists('apostas.html'):
+            QMessageBox.information(self, "Erro", "O arquivo apostas.html não foi encontrado.",
+                                    QMessageBox.Ok)
+            return
+
         extract_bets_from_html()
+
+        if not os.path.exists('apostas.json'):
+            QMessageBox.information(self, "Erro", "O arquivo apostas.json não foi encontrado.",
+                                    QMessageBox.Ok)
+            return
+
         create_database('apostas.json', 'database.db')
 
         QMessageBox.information(self, "Extração concluída", "A extração de apostas do arquivo html está completa.",
@@ -145,6 +157,11 @@ class MainWindow(QWidget):
             self.FixtureNameList_widget.clear()
 
     def load_lists(self):
+        if not os.path.exists('listas.json'):
+            QMessageBox.information(self, "Erro", "O arquivo database.db não foi encontrado.",
+                                    QMessageBox.Ok)
+            return
+
         self.listas = read_json('listas.json')
 
         if self.ParticipantSpanList_widget.count() == 0:
@@ -163,7 +180,11 @@ class MainWindow(QWidget):
             self.reset_table_widget()
 
     def query_db(self):
-        print('query_db_01')
+        if not os.path.exists('database.db'):
+            QMessageBox.information(self, "Erro", "O arquivo database.db não foi encontrado.",
+                                    QMessageBox.Ok)
+            return
+
         params = (self.ParticipantSpan, self.MarketDescription, self.FixtureName)
         self.query_result = query_db_01('database.db', params)
 
@@ -172,8 +193,9 @@ class MainWindow(QWidget):
 
         self.reset_table_widget()
 
-        for multiple_id in self.query_result:
-            self.multipleIDsList_widget.addItem(multiple_id)
+        if self.query_result:
+            for multiple_id in self.query_result:
+                self.multipleIDsList_widget.addItem(multiple_id)
 
     def reset_table_widget(self):
         self.table_widget.clear()
