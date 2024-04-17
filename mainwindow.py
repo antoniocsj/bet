@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QListWidget, QAbstractItemView, QPushButton,
                                QMessageBox, QTableWidget, QTableWidgetItem)
+from PySide6.QtCore import Qt
 from parse_html_ops import extract_bets_from_html
 from database_ops import create_database, query_db_01
 from utils import read_json
@@ -108,14 +109,21 @@ class MainWindow(QWidget):
                 self.table_widget.setRowCount(n_rows)
                 self.table_widget.setColumnCount(n_columns)
 
+                table_widget_width = self.table_widget.width()
+                for i in range(n_columns):
+                    self.table_widget.setColumnWidth(i, (table_widget_width - 100) // 3)
+
                 for i, (a, b, c) in enumerate(rows):
                     item_a = QTableWidgetItem(a)
+                    item_a.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
                     item_b = QTableWidgetItem(b)
+                    item_b.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
                     item_c = QTableWidgetItem(c)
+                    item_c.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
+
                     self.table_widget.setItem(i, 0, item_a)
                     self.table_widget.setItem(i, 1, item_b)
                     self.table_widget.setItem(i, 2, item_c)
-                pass
 
         else:
             self.multiple_id_selected = ''
@@ -152,9 +160,7 @@ class MainWindow(QWidget):
             self.multipleIDsList_widget.clear()
 
         if self.table_widget.rowCount() > 0:
-            self.table_widget.clear()
-            self.table_widget.setRowCount(0)
-            self.table_widget.setColumnCount(0)
+            self.reset_table_widget()
 
     def query_db(self):
         print('query_db_01')
@@ -164,5 +170,12 @@ class MainWindow(QWidget):
         if self.multipleIDsList_widget.count() > 0:
             self.multipleIDsList_widget.clear()
 
+        self.reset_table_widget()
+
         for multiple_id in self.query_result:
             self.multipleIDsList_widget.addItem(multiple_id)
+
+    def reset_table_widget(self):
+        self.table_widget.clear()
+        self.table_widget.setRowCount(0)
+        self.table_widget.setColumnCount(0)
