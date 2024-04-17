@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QListWidget, Q
 from PySide6.QtCore import Qt
 from parse_html_ops import extract_bets_from_html
 from database_ops import create_database, query_db_01
-from utils import read_json
+from utils import read_json, tuple_parameters_ok
 
 
 class MainWindow(QWidget):
@@ -37,19 +37,19 @@ class MainWindow(QWidget):
         self.FixtureNameList_widget.currentItemChanged.connect(self.FixtureNameList_widget_current_item_changed)
         self.FixtureNameList_widget.setMaximumHeight(250)
 
-        button_extract = QPushButton("Extrair")
-        button_extract.clicked.connect(self.extract)
+        self.button_extract = QPushButton("Extrair")
+        self.button_extract.clicked.connect(self.extract)
 
-        button_load = QPushButton("Carregar listas")
-        button_load.clicked.connect(self.load_lists)
+        self.button_load = QPushButton("Carregar listas")
+        self.button_load.clicked.connect(self.load_lists)
 
-        button_query = QPushButton("Consultar")
-        button_query.clicked.connect(self.query_db)
+        self.button_query = QPushButton("Consultar")
+        self.button_query.clicked.connect(self.query_db)
 
         h_layout1 = QHBoxLayout()
-        h_layout1.addWidget(button_extract)
-        h_layout1.addWidget(button_load)
-        h_layout1.addWidget(button_query)
+        h_layout1.addWidget(self.button_extract)
+        h_layout1.addWidget(self.button_load)
+        h_layout1.addWidget(self.button_query)
 
         h_layout2 = QHBoxLayout()
         h_layout2.addWidget(self.ParticipantSpanList_widget)
@@ -73,6 +73,7 @@ class MainWindow(QWidget):
         v_layout.addLayout(h_layout3)
 
         self.setLayout(v_layout)
+        self.check_files()
 
     def ParticipantSpanList_widget_current_item_changed(self, item):
         if item:
@@ -156,6 +157,8 @@ class MainWindow(QWidget):
         if self.FixtureNameList_widget.count() > 0:
             self.FixtureNameList_widget.clear()
 
+        self.check_files()
+
     def load_lists(self):
         if not os.path.exists('listas.json'):
             QMessageBox.information(self, "Erro", "O arquivo database.db não foi encontrado.",
@@ -186,7 +189,12 @@ class MainWindow(QWidget):
             return
 
         params = (self.ParticipantSpan, self.MarketDescription, self.FixtureName)
-        self.query_result = query_db_01('database.db', params)
+        if tuple_parameters_ok(params):
+            self.query_result = query_db_01('database.db', params)
+        else:
+            self.query_result = None
+            QMessageBox.information(self, "Atenção", "Selecione elementos das 3 listas",
+                                    QMessageBox.Ok)
 
         if self.multipleIDsList_widget.count() > 0:
             self.multipleIDsList_widget.clear()
@@ -201,3 +209,14 @@ class MainWindow(QWidget):
         self.table_widget.clear()
         self.table_widget.setRowCount(0)
         self.table_widget.setColumnCount(0)
+
+    def check_files(self):
+        if os.path.exists('listas.json'):
+            self.button_load.setEnabled(True)
+        else:
+            self.button_load.setEnabled(False)
+
+        if os.path.exists('listas.json') and os.path.exists('database.db'):
+            self.button_query.setEnabled(True)
+        else:
+            self.button_query.setEnabled(False)

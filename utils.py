@@ -15,3 +15,10 @@ def read_json(filename: str) -> dict:
 def write_json(filename: str, _dict: dict):
     with open(filename, 'w') as file:
         json.dump(_dict, file, indent=4, ensure_ascii=False)
+
+
+def tuple_parameters_ok(_tuple: tuple):
+    for elem in _tuple:
+        if not isinstance(elem, str) or elem == '':
+            return False
+    return True
