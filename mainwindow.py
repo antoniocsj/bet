@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QListWidget, QAbstractItemView, QPushButton,
-                               QMessageBox)
+                               QMessageBox, QTableWidget, QTableWidgetItem)
 from parse_html_ops import extract_bets_from_html
 from database_ops import create_database, query_db_01
 from utils import read_json
@@ -14,6 +14,8 @@ class MainWindow(QWidget):
         self.ParticipantSpan = ''
         self.MarketDescription = ''
         self.FixtureName = ''
+        self.multiple_id_selected = ''
+        self.query_result = None
 
         self.setWindowTitle("Apostas Múltiplas")
 
@@ -24,7 +26,8 @@ class MainWindow(QWidget):
 
         self.MarketDescriptionList_widget = QListWidget(self)
         self.MarketDescriptionList_widget.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.MarketDescriptionList_widget.currentItemChanged.connect(self.MarketDescriptionList_widget_current_item_changed)
+        self.MarketDescriptionList_widget.currentItemChanged.connect(
+            self.MarketDescriptionList_widget_current_item_changed)
         self.MarketDescriptionList_widget.setMaximumHeight(250)
 
         self.FixtureNameList_widget = QListWidget(self)
@@ -51,9 +54,21 @@ class MainWindow(QWidget):
         h_layout2.addWidget(self.MarketDescriptionList_widget)
         h_layout2.addWidget(self.FixtureNameList_widget)
 
+        self.multipleIDsList_widget = QListWidget(self)
+        self.multipleIDsList_widget.setMaximumWidth(100)
+        self.multipleIDsList_widget.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.multipleIDsList_widget.currentItemChanged.connect(self.multipleIDsList_widget_current_item_changed)
+
+        self.table_widget = QTableWidget()
+
+        h_layout3 = QHBoxLayout()
+        h_layout3.addWidget(self.multipleIDsList_widget)
+        h_layout3.addWidget(self.table_widget)
+
         v_layout = QVBoxLayout()
         v_layout.addLayout(h_layout1)
         v_layout.addLayout(h_layout2)
+        v_layout.addLayout(h_layout3)
 
         self.setLayout(v_layout)
 
@@ -78,11 +93,39 @@ class MainWindow(QWidget):
         else:
             self.FixtureName = ''
 
+    def multipleIDsList_widget_current_item_changed(self, item):
+        if item:
+            print("multipleIDsList_widget_current_item_changed. Current item : ", item.text())
+            self.multiple_id_selected = item.text()
+
+            if self.query_result:
+                self.table_widget.clear()
+
+                rows = self.query_result[self.multiple_id_selected]
+                n_rows = len(rows)
+                n_columns = len(rows[0])
+
+                self.table_widget.setRowCount(n_rows)
+                self.table_widget.setColumnCount(n_columns)
+
+                for i, (a, b, c) in enumerate(rows):
+                    item_a = QTableWidgetItem(a)
+                    item_b = QTableWidgetItem(b)
+                    item_c = QTableWidgetItem(c)
+                    self.table_widget.setItem(i, 0, item_a)
+                    self.table_widget.setItem(i, 1, item_b)
+                    self.table_widget.setItem(i, 2, item_c)
+                pass
+
+        else:
+            self.multiple_id_selected = ''
+
     def extract(self):
         extract_bets_from_html()
         create_database('apostas.json', 'database.db')
 
-        QMessageBox.information(self, "Extração", "A extração de apostas do arquivo html está completa.", QMessageBox.Ok)
+        QMessageBox.information(self, "Extração concluída", "A extração de apostas do arquivo html está completa.",
+                                QMessageBox.Ok)
 
         if self.ParticipantSpanList_widget.count() > 0:
             self.ParticipantSpanList_widget.clear()
@@ -105,7 +148,21 @@ class MainWindow(QWidget):
         if self.FixtureNameList_widget.count() == 0:
             self.FixtureNameList_widget.addItems(self.listas['FixtureNameList'])
 
+        if self.multipleIDsList_widget.count() > 0:
+            self.multipleIDsList_widget.clear()
+
+        if self.table_widget.rowCount() > 0:
+            self.table_widget.clear()
+            self.table_widget.setRowCount(0)
+            self.table_widget.setColumnCount(0)
+
     def query_db(self):
         print('query_db_01')
         params = (self.ParticipantSpan, self.MarketDescription, self.FixtureName)
-        query_db_01('database.db', params)
+        self.query_result = query_db_01('database.db', params)
+
+        if self.multipleIDsList_widget.count() > 0:
+            self.multipleIDsList_widget.clear()
+
+        for multiple_id in self.query_result:
+            self.multipleIDsList_widget.addItem(multiple_id)

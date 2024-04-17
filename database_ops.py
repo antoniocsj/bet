@@ -197,10 +197,11 @@ def query_db_01(file_sqlite: str, parameters: tuple[str, str, str]) -> dict | No
             results[str(MultipleBetID)] = []
             result2_ = []
             for row in result2:
-                row_str = f'{row[1]}, {row[2]}, {row[3]}'
-                result2_.append(row_str)
+                # row_str = f'{row[1]}, {row[2]}, {row[3]}'
+                _row = (row[1], row[2], row[3])
+                result2_.append(_row)
 
-            results[str(MultipleBetID)].append(sorted(result2_))
+            results[str(MultipleBetID)] = sorted(result2_)
 
         write_json('results.json', results)
 
