@@ -1,4 +1,5 @@
-import os.path
+import os
+import shutil
 
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QListWidget, QAbstractItemView, QPushButton,
                                QMessageBox, QTableWidget, QTableWidgetItem, QLabel)
@@ -9,10 +10,10 @@ from utils import read_json, query_parameters_ok
 
 
 class MainWindow(QWidget):
-    def __init__(self):
+    def __init__(self, main_dir: str):
         super().__init__()
-
-        self.listas = None
+        self.main_dir = main_dir
+        self.terms = None
         self.ParticipantSpan = ''
         self.MarketDescription = ''
         self.FixtureName = ''
@@ -28,8 +29,7 @@ class MainWindow(QWidget):
 
         self.MarketDescriptionList_widget = QListWidget(self)
         self.MarketDescriptionList_widget.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.MarketDescriptionList_widget.currentItemChanged.connect(
-            self.MarketDescriptionList_widget_current_item_changed)
+        self.MarketDescriptionList_widget.currentItemChanged.connect(self.MarketDescriptionList_widget_current_item_changed)
         self.MarketDescriptionList_widget.setMaximumHeight(250)
 
         self.FixtureNameList_widget = QListWidget(self)
@@ -155,22 +155,34 @@ class MainWindow(QWidget):
             self.multiple_id_selected = ''
 
     def extract(self):
-        if not os.path.exists('apostas.html'):
-            QMessageBox.information(self, "Erro", "O arquivo apostas.html não foi encontrado.",
+        filename_bets_html = 'bets.html'
+        filename_betsbody_html = 'bets_body.html'
+        filename_bets_json = 'bets.json'
+        filename_database = 'bets.db'
+        filename_terms_json = 'terms.json'
+
+        temp_dir = os.path.join(self.main_dir, 'temp')
+        filepath_bets_html = os.path.join(self.main_dir, filename_bets_html)
+        filepath_bets_json = os.path.join(temp_dir, filename_bets_json)
+
+        if not os.path.exists(filepath_bets_html):
+            QMessageBox.information(self, "Erro", f"O arquivo {filepath_bets_html} não foi encontrado.",
                                     QMessageBox.Ok)
             return
 
-        extract_bets_from_html()
+        extract_bets_from_html(self.main_dir, filename_bets_html, filename_betsbody_html, filename_bets_json)
 
-        if not os.path.exists('apostas.json'):
-            QMessageBox.information(self, "Erro", "O arquivo apostas.json não foi encontrado.",
+        if not os.path.exists(filepath_bets_json):
+            QMessageBox.information(self, "Erro", f"O arquivo {filepath_bets_json} não foi encontrado.",
                                     QMessageBox.Ok)
             return
 
-        create_database('apostas.json', 'database.db')
-
-        QMessageBox.information(self, "Extração concluída", "A extração de apostas do arquivo html está completa.",
-                                QMessageBox.Ok)
+        _r = create_database(self.main_dir, filepath_bets_json, filename_database, filename_terms_json)
+        if _r:
+            QMessageBox.information(self, "Extração concluída", "A extração de apostas do arquivo html está completa.", QMessageBox.Ok)
+        else:
+            QMessageBox.critical(self, "Falha na Extração", "Houve um erro durante a extração das apostas do arquivo html.", QMessageBox.Ok)
+            return
 
         if self.ParticipantSpanList_widget.count() > 0:
             self.ParticipantSpanList_widget.clear()
@@ -189,21 +201,27 @@ class MainWindow(QWidget):
         self.FixtureName = ''
 
     def load_lists(self):
-        if not os.path.exists('listas.json'):
-            QMessageBox.information(self, "Erro", "O arquivo listas.json não foi encontrado.",
+        filename_terms_json = 'terms.json'
+
+        temp_dir = os.path.join(self.main_dir, 'temp')
+        filepath_terms_json = os.path.join(temp_dir, filename_terms_json)
+
+        if not os.path.exists(filepath_terms_json):
+            QMessageBox.information(self, "Erro", f"O arquivo {filepath_terms_json} não foi encontrado.",
                                     QMessageBox.Ok)
             return
 
-        self.listas = read_json('listas.json')
+        filepath_terms_json = os.path.join(self.main_dir, 'temp', 'terms.json')
+        self.terms = read_json(filepath_terms_json)
 
         self.ParticipantSpanList_widget.clear()
-        self.ParticipantSpanList_widget.addItems(self.listas['ParticipantSpanList'])
+        self.ParticipantSpanList_widget.addItems(self.terms['ParticipantSpanList'])
 
         self.MarketDescriptionList_widget.clear()
-        self.MarketDescriptionList_widget.addItems(self.listas['MarketDescriptionList'])
+        self.MarketDescriptionList_widget.addItems(self.terms['MarketDescriptionList'])
 
         self.FixtureNameList_widget.clear()
-        self.FixtureNameList_widget.addItems(self.listas['FixtureNameList'])
+        self.FixtureNameList_widget.addItems(self.terms['FixtureNameList'])
 
         self.multipleIDsList_widget.clear()
         self.multipleIDsList_widget.clear()
@@ -214,12 +232,15 @@ class MainWindow(QWidget):
         self.FixtureName = ''
 
     def query_db(self):
-        if not os.path.exists('database.db'):
-            QMessageBox.information(self, "Erro", "O arquivo database.db não foi encontrado.",
-                                    QMessageBox.Ok)
+        filename_database = 'bets.db'
+
+        temp_dir = os.path.join(self.main_dir, 'temp')
+        filepath_database = os.path.join(temp_dir, filename_database)
+
+        if not os.path.exists(filepath_database):
+            QMessageBox.information(self, "Erro", f"O arquivo {filepath_database} não foi encontrado.", QMessageBox.Ok)
             return
 
-        # params = (self.ParticipantSpan, self.MarketDescription, self.FixtureName)
         params = {
             'ParticipantSpan': self.ParticipantSpan,
             'MarketDescription': self.MarketDescription,
@@ -227,7 +248,7 @@ class MainWindow(QWidget):
         }
 
         if query_parameters_ok(params):
-            self.query_result = query_db_01('database.db', params)
+            self.query_result = query_db_01(self.main_dir, filename_database, params)
         else:
             self.query_result = None
             QMessageBox.information(self, "Atenção", "Selecione elementos das listas",
@@ -251,12 +272,19 @@ class MainWindow(QWidget):
         self.label_mbet_ret.clear()
 
     def check_files(self):
-        if os.path.exists('listas.json'):
+        temp_dir = os.path.join(self.main_dir, 'temp')
+
+        if not os.path.exists('temp'):
+            os.makedirs('temp')
+
+        filepath_terms_json = os.path.join(temp_dir, 'terms.json')
+        if os.path.exists(filepath_terms_json):
             self.button_load.setEnabled(True)
         else:
             self.button_load.setEnabled(False)
 
-        if os.path.exists('listas.json') and os.path.exists('database.db'):
+        filepath_database = os.path.join(temp_dir, 'bets.db')
+        if os.path.exists(filepath_terms_json) and os.path.exists(filepath_database):
             self.button_query.setEnabled(True)
         else:
             self.button_query.setEnabled(False)

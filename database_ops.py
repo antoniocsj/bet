@@ -5,84 +5,75 @@ import sqlite3
 from utils import read_json, write_json
 
 
-def gera_relatorio(arquivo):
-    data = read_json(arquivo)
-    apostas = data['apostas']
+def create_database(main_dir: str, filename_bets_json: str, filename_database: str, filename_terms_json: str) -> bool:
+    """
+    Cria um arquivo de banco de dados sqlite (bets.db) a partir de um arquivo json (apostas.json).
+    Também cria um arquivo (termos.json) que contém as listas de termos que aparecem nas apostas e que serão
+    usadas na interface gráfica para formar os elementos da pesquisa.
+    :param main_dir: o diretório onde fica main.py
+    :param filename_bets_json:
+    :param filename_database:
+    :param filename_terms_json:
+    :return: Retorna True em caso de sucesso, False em caso de falha ao criar o banco de dados ou o arquivo dos termos.
+    """
+    temp_dir = os.path.join(main_dir, 'temp')
 
-    # Converte as apostas múltiplas para um formato imutável para poder usar um set
-    multiple_bet_list = []
+    if not os.path.exists(temp_dir):
+        print('ERRO. O diretório temp não foi encontrado.')
+        return False
 
-    for aposta in apostas:
-        StakeDesc = aposta['StakeDesc']
-        HeaderText = aposta['HeaderText']
-        BetInformationText = aposta['BetInformationText']
+    filepath_bets_json = os.path.join(temp_dir, filename_bets_json)
+    filepath_database = os.path.join(temp_dir, filename_database)
+    filepath_terms_json = os.path.join(temp_dir, filename_terms_json)
 
-        ParticipantContainer = aposta['ParticipantContainer']
-        multiple_bet = []
+    data = read_json(filepath_bets_json)
+    multiple_bets = data['bets']
 
-        for p in ParticipantContainer:
-            ParticipantSpan = p['ParticipantSpan']
-            MarketDescription = p['MarketDescription']
-            FixtureName = p['FixtureName']
-            simple_bet = (ParticipantSpan, MarketDescription, FixtureName)
-            simple_bet_str = '|'.join(simple_bet)
-            multiple_bet.append(simple_bet_str)
-            print(f'simple_bet = {simple_bet_str}')
-
-        multiple_bet_str = ', '.join(sorted(multiple_bet))
-        print(f'multiple_bet = {multiple_bet_str}')
-        multiple_bet_list.append(multiple_bet_str)
-
-    multiple_bet_list = sorted(multiple_bet_list)
-    print(multiple_bet_list)
-
-    multiple_bet_set = set(multiple_bet_list)
-    print(multiple_bet_set)
-    pass
-
-    # Usa um set para remover duplicatas e compara o tamanho do set com a lista original
-    if len(multiple_bet_set) != len(apostas):
-        print("Há apostas múltiplas idênticas.")
-    else:
-        print("Não há apostas múltiplas idênticas.")
-
-
-def create_database(file_json_in: str, file_sqlite: str):
-    data = read_json(file_json_in)
-    apostas = data['apostas']
-
-    # estes conjustos servirão para saber quantos tipos diferentes ParticipantSpan, MarketDescription e
-    # FixtureName estão presentes no BD.
+    # estes conjuntos servirão para saber quantos termos diferentes são usados como ParticipantSpan, MarketDescription
+    # e FixtureName.
     ParticipantSpanSet = set()
     MarketDescriptionSet = set()
     FixtureNameSet = set()
 
     # se já existe um arquivo de banco de dados, delete-o.
-    if os.path.exists(file_sqlite):
-        os.remove(file_sqlite)
+    if os.path.exists(filepath_database):
+        os.remove(filepath_database)
 
     connection = None
     try:
-        # Connect to DB and create a cursor
-        connection = sqlite3.connect(file_sqlite)
+        connection = sqlite3.connect(filepath_database)
         cursor = connection.cursor()
-        # print('DB Init')
 
-        # Write a query and execute it with cursor
-        query = 'select sqlite_version();'
+        # with open('create_tables.sql') as file:
+        #     cursor.executescript(file.read())
+        query = '''
+        CREATE TABLE SimpleBet (
+            ID INT NOT NULL UNIQUE,
+            ParticipantSpan VARCHAR,
+            MarketDescription VARCHAR,
+            FixtureName VARCHAR,
+            MultipleBetID INT NOT NULL,
+            FOREIGN KEY (MultipleBetID) REFERENCES MultipleBet(ID)
+            PRIMARY KEY (ID)
+        );
+        '''
         cursor.execute(query)
 
-        # Fetch and output result
-        result = cursor.fetchall()
-        # print(f'SQLite Version is {result}')
-
-        with open('create_tables.sql') as file:
-            cursor.executescript(file.read())
+        query = '''
+                CREATE TABLE MultipleBet (
+                ID INT NOT NULL UNIQUE,
+                StakeDesc VARCHAR,
+                HeaderText VARCHAR,
+                BetInformationText VARCHAR,
+                PRIMARY KEY (ID)
+            );
+        '''
+        cursor.execute(query)
 
         simple_bet_id_counter = 1
 
         # percorre todas as apostas e adiciona-as no banco.
-        for i, multiple_bet in enumerate(apostas):
+        for i, multiple_bet in enumerate(multiple_bets):
             StakeDesc = multiple_bet['StakeDesc']
             HeaderText = multiple_bet['HeaderText']
             BetInformationText = multiple_bet['BetInformationText']
@@ -91,7 +82,6 @@ def create_database(file_json_in: str, file_sqlite: str):
 
             # inserir uma nova aposta múltipla na MultipleBet
             query = "INSERT INTO MultipleBet VALUES(?, ?, ?, ?)"
-            # print(MultipleBetData)
             cursor.execute(query, MultipleBetData)
 
             ParticipantContainer = multiple_bet['ParticipantContainer']
@@ -105,27 +95,22 @@ def create_database(file_json_in: str, file_sqlite: str):
 
                 # inserir uma nova aposta múltipla na MultipleBet
                 query = "INSERT INTO SimpleBet VALUES(?, ?, ?, ?, ?)"
-                # print(f'    {SimpleBetData}')
                 cursor.execute(query, SimpleBetData)
 
                 ParticipantSpanSet.add(ParticipantSpan)
                 MarketDescriptionSet.add(MarketDescription)
                 FixtureNameSet.add(FixtureName)
 
-        # Save changes and close the cursor
-        connection.commit()
+        connection.commit()  # Save changes
         cursor.close()
 
-    # Handle errors
     except sqlite3.Error as error:
-        print('Error occurred - ', error)
+        print('sqlite3. Error occurred : ', error)
+        return False
 
-    # Close DB Connection irrespective of success
-    # or failure
     finally:
         if connection:
             connection.close()
-            # print('SQLite Connection closed')
 
     # salva os conjuntos em forma de listas ordenadas
     _dict = {
@@ -134,7 +119,9 @@ def create_database(file_json_in: str, file_sqlite: str):
         'FixtureNameList': sorted(list(FixtureNameSet))
     }
 
-    write_json('listas.json', _dict)
+    write_json(filepath_terms_json, _dict)
+
+    return True
 
 
 def tuple_parameters_ok(_tuple: tuple):
@@ -144,60 +131,54 @@ def tuple_parameters_ok(_tuple: tuple):
     return True
 
 
-def query_db_01(file_sqlite: str, parameters: dict) -> dict | None:
+def query_db_01(main_dir: str, filename_database: str, parameters: dict) -> dict | None:
     """
     Faz uma consulta específica no BD.
     Solicita quais são as apostas múltiplas que contém a seguinte linha (ou aposta simples)
     ('ParticipantSpan') ou ('ParticipantSpan', 'MarketDescription') ou
     ('ParticipantSpan', 'MarketDescription', 'FixtureName')
     O resultado é retornado e também é gravado no arquivo results.json
+    :param main_dir:
+    :param filename_database:
     :param parameters: uma tupla no formato ('ParticipantSpan', 'MarketDescription', 'FixtureName')
-    :param file_sqlite:
-    :return:
+    :return: Retorna um dict com os resultados da busca em caso de sucesso ou None em caso de falha. Também guarda um
+            arquivo results.json contendo o resultado da busca.
     """
+    temp_dir = os.path.join(main_dir, 'temp')
+
+    if not os.path.exists(temp_dir):
+        print('ERRO. O diretório temp não foi encontrado.')
+        return None
+
+    filepath_database = os.path.join(temp_dir, filename_database)
+    filepath_results_json = os.path.join(temp_dir, 'results.json')
+
     connection = None
     try:
-        # Connect to DB and create a cursor
-        connection = sqlite3.connect(file_sqlite)
+        connection = sqlite3.connect(filepath_database)
         cursor = connection.cursor()
-        # print('DB Init')
-
-        # consulta a versão do BD.
-        query = 'select sqlite_version();'
-        cursor.execute(query)
-
-        # Fetch and output result
-        result = cursor.fetchall()
-        # print(f'SQLite Version is {result}')
 
         _len_parameters = len(parameters.items())
         if _len_parameters == 0 or _len_parameters > 3:
             return None
 
-        # executa a consulta ao banco de dados
-        # params = tuple([x for x in parameters.values()])
-        params = []
+        # prepara a string de consulta ao banco de dados
+        _params = []
         where = 'WHERE '
         _list = []
         for k, v in parameters.items():
             if v:
                 _list.append(f'{k} = ?')
-                params.append(v)
+                _params.append(v)
 
         where += ' AND '.join(_list)
         query = 'SELECT SimpleBet.MultipleBetID FROM SimpleBet ' + where
 
-        # params = ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24')
-        # if not tuple_parameters_ok(parameters):
-        #     print('ERRO. parâmetros inválidos.')
-        #     return None
-
-        cursor.execute(query, params)
-
-        result = cursor.fetchall()
+        cursor.execute(query, _params)
+        query_result = cursor.fetchall()
 
         results = {}
-        for r in result:
+        for r in query_result:
             MultipleBetID = r[0]
             results[str(MultipleBetID)] = {'info': tuple(), 'rows': []}
 
@@ -218,25 +199,32 @@ def query_db_01(file_sqlite: str, parameters: dict) -> dict | None:
 
             results[str(MultipleBetID)]['rows'] = sorted(result3_)
 
-        write_json('results.json', results)
-
-        # Close the cursor
+        write_json(filepath_results_json, results)
         cursor.close()
 
         return results
 
-    # Handle errors
     except sqlite3.Error as error:
         print('Error occurred - ', error)
 
-    # Close DB Connection irrespective of success
-    # or failure
     finally:
         if connection:
             connection.close()
-            # print('SQLite Connection closed')
 
 
 if __name__ == '__main__':
-    # create_database('apostas.json', 'database.db')
-    query_db_01('database.db', ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24'))
+    cur_dir = os.curdir
+
+    _r = create_database(cur_dir, 'bets.json', 'bets.db', 'terms.json')
+    if not _r:
+        print('ERRO. Falha ao criar o banco de dados.')
+        exit(-1)
+
+    params = {
+        'ParticipantSpan': 'Arsenal',
+        'MarketDescription': 'Vencedor Final',
+        'FixtureName': 'Inglaterra - Premier League 2023/24'
+    }
+    _res = query_db_01(cur_dir, 'bets.db', params)
+    for k, v in _res.items():
+        print(k, v)
