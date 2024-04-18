@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QListWidget, Q
 from PySide6.QtCore import Qt
 from parse_html_ops import extract_bets_from_html
 from database_ops import create_database, query_db_01
-from utils import read_json, tuple_parameters_ok
+from utils import read_json, query_parameters_ok
 
 
 class MainWindow(QWidget):
@@ -91,28 +91,28 @@ class MainWindow(QWidget):
 
     def ParticipantSpanList_widget_current_item_changed(self, item):
         if item:
-            print("ParticipantSpanList_widget_current_item_changed. Current item : ", item.text())
+            # print("ParticipantSpanList_widget_current_item_changed. Current item : ", item.text())
             self.ParticipantSpan = item.text()
         else:
             self.ParticipantSpan = ''
 
     def MarketDescriptionList_widget_current_item_changed(self, item):
         if item:
-            print("MarketDescriptionList_widget_current_item_changed. Current item : ", item.text())
+            # print("MarketDescriptionList_widget_current_item_changed. Current item : ", item.text())
             self.MarketDescription = item.text()
         else:
             self.MarketDescription = ''
 
     def FixtureNameList_widget_current_item_changed(self, item):
         if item:
-            print("FixtureNameList_widget_current_item_changed. Current item : ", item.text())
+            # print("FixtureNameList_widget_current_item_changed. Current item : ", item.text())
             self.FixtureName = item.text()
         else:
             self.FixtureName = ''
 
     def multipleIDsList_widget_current_item_changed(self, item):
         if item:
-            print("multipleIDsList_widget_current_item_changed. Current item : ", item.text())
+            # print("multipleIDsList_widget_current_item_changed. Current item : ", item.text())
             self.multiple_id_selected = item.text()
 
             if self.query_result:
@@ -183,28 +183,35 @@ class MainWindow(QWidget):
 
         self.check_files()
 
+        self.reset_table_widget()
+        self.ParticipantSpan = ''
+        self.MarketDescription = ''
+        self.FixtureName = ''
+
     def load_lists(self):
         if not os.path.exists('listas.json'):
-            QMessageBox.information(self, "Erro", "O arquivo database.db não foi encontrado.",
+            QMessageBox.information(self, "Erro", "O arquivo listas.json não foi encontrado.",
                                     QMessageBox.Ok)
             return
 
         self.listas = read_json('listas.json')
 
-        if self.ParticipantSpanList_widget.count() == 0:
-            self.ParticipantSpanList_widget.addItems(self.listas['ParticipantSpanList'])
+        self.ParticipantSpanList_widget.clear()
+        self.ParticipantSpanList_widget.addItems(self.listas['ParticipantSpanList'])
 
-        if self.MarketDescriptionList_widget.count() == 0:
-            self.MarketDescriptionList_widget.addItems(self.listas['MarketDescriptionList'])
+        self.MarketDescriptionList_widget.clear()
+        self.MarketDescriptionList_widget.addItems(self.listas['MarketDescriptionList'])
 
-        if self.FixtureNameList_widget.count() == 0:
-            self.FixtureNameList_widget.addItems(self.listas['FixtureNameList'])
+        self.FixtureNameList_widget.clear()
+        self.FixtureNameList_widget.addItems(self.listas['FixtureNameList'])
 
-        if self.multipleIDsList_widget.count() > 0:
-            self.multipleIDsList_widget.clear()
+        self.multipleIDsList_widget.clear()
+        self.multipleIDsList_widget.clear()
 
-        # if self.table_widget.rowCount() > 0:
         self.reset_table_widget()
+        self.ParticipantSpan = ''
+        self.MarketDescription = ''
+        self.FixtureName = ''
 
     def query_db(self):
         if not os.path.exists('database.db'):
@@ -212,12 +219,18 @@ class MainWindow(QWidget):
                                     QMessageBox.Ok)
             return
 
-        params = (self.ParticipantSpan, self.MarketDescription, self.FixtureName)
-        if tuple_parameters_ok(params):
+        # params = (self.ParticipantSpan, self.MarketDescription, self.FixtureName)
+        params = {
+            'ParticipantSpan': self.ParticipantSpan,
+            'MarketDescription': self.MarketDescription,
+            'FixtureName': self.FixtureName
+        }
+
+        if query_parameters_ok(params):
             self.query_result = query_db_01('database.db', params)
         else:
             self.query_result = None
-            QMessageBox.information(self, "Atenção", "Selecione elementos das 3 listas",
+            QMessageBox.information(self, "Atenção", "Selecione elementos das listas",
                                     QMessageBox.Ok)
 
         if self.multipleIDsList_widget.count() > 0:

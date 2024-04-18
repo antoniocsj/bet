@@ -144,10 +144,11 @@ def tuple_parameters_ok(_tuple: tuple):
     return True
 
 
-def query_db_01(file_sqlite: str, parameters: tuple[str, str, str]) -> dict | None:
+def query_db_01(file_sqlite: str, parameters: dict) -> dict | None:
     """
     Faz uma consulta específica no BD.
     Solicita quais são as apostas múltiplas que contém a seguinte linha (ou aposta simples)
+    ('ParticipantSpan') ou ('ParticipantSpan', 'MarketDescription') ou
     ('ParticipantSpan', 'MarketDescription', 'FixtureName')
     O resultado é retornado e também é gravado no arquivo results.json
     :param parameters: uma tupla no formato ('ParticipantSpan', 'MarketDescription', 'FixtureName')
@@ -169,20 +170,29 @@ def query_db_01(file_sqlite: str, parameters: tuple[str, str, str]) -> dict | No
         result = cursor.fetchall()
         # print(f'SQLite Version is {result}')
 
-        # executa a consulta ao banco de dados
-        query = '''
-        SELECT SimpleBet.MultipleBetID FROM SimpleBet WHERE 
-            ParticipantSpan = ? AND 
-            MarketDescription = ? AND
-            FixtureName = ?
-        '''
-
-        # params = ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24')
-        if not tuple_parameters_ok(parameters):
-            print('ERRO. parâmetros inválidos.')
+        _len_parameters = len(parameters.items())
+        if _len_parameters == 0 or _len_parameters > 3:
             return None
 
-        cursor.execute(query, parameters)
+        # executa a consulta ao banco de dados
+        # params = tuple([x for x in parameters.values()])
+        params = []
+        where = 'WHERE '
+        _list = []
+        for k, v in parameters.items():
+            if v:
+                _list.append(f'{k} = ?')
+                params.append(v)
+
+        where += ' AND '.join(_list)
+        query = 'SELECT SimpleBet.MultipleBetID FROM SimpleBet ' + where
+
+        # params = ('Arsenal', 'Vencedor Final', 'Inglaterra - Premier League 2023/24')
+        # if not tuple_parameters_ok(parameters):
+        #     print('ERRO. parâmetros inválidos.')
+        #     return None
+
+        cursor.execute(query, params)
 
         result = cursor.fetchall()
 

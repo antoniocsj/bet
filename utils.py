@@ -22,3 +22,15 @@ def tuple_parameters_ok(_tuple: tuple):
         if not isinstance(elem, str) or elem == '':
             return False
     return True
+
+
+def query_parameters_ok(_params: dict[str, str]):
+    """
+    Verifica se pelo menos um valor de _params é uma string não nula.
+    :param _params:
+    :return:
+    """
+    for k, v in _params.items():
+        if v:
+            return True
+    return False
