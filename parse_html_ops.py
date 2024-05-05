@@ -127,6 +127,8 @@ def extract_bets_from_html(main_dir: str, filename_bets_html: str, filename_bets
         # print('--------\n')
         multiple_bets.append(multiple_bet)
 
+    multiple_bets.reverse()
+
     multiple_bets_dict = {
         'n_bets': len(multiple_bets),
         'bets': multiple_bets
